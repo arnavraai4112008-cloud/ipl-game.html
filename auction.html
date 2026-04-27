@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPL 2026 BGMI-Grade Multiplayer</title>
+    <style>
+        :root {
+            --primary-bg: #0f172a; --card-bg: #1e293b; --accent-gold: #fbbf24;
+            --text-light: #f8fafc; --text-muted: #94a3b8; --danger: #ef4444; --success: #22c55e;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--primary-bg); color: var(--text-light); }
+
+        #setup-screen, #lobby-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 20px; }
+        #game-wrapper { display: none; flex-direction: column; min-height: 100vh; }
+        
+        .box { background: var(--card-bg); padding: 40px; border-radius: 10px; text-align: center; border: 2px solid var(--accent-gold); width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .box input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 5px; border: none; font-size: 1.1rem; text-align: center; font-weight: bold; }
+        .box button { background: var(--success); color: white; border: none; padding: 15px; width: 100%; font-size: 1.1rem; border-radius: 5px; cursor: pointer; margin-top: 10px; font-weight: bold; transition: transform 0.1s; }
+        .box button:active { transform: scale(0.95); }
+        .box button.btn-host { background: var(--accent-gold); color: black; margin-bottom: 20px;}
+        .box button:disabled { background: #555; cursor: not-allowed; transform: none; }
+
+        .team-list { list-style: none; padding: 0; margin: 20px 0; text-align: left; background: var(--primary-bg); border-radius: 8px; padding: 15px; max-height: 200px; overflow-y: auto;}
+        .team-list li { padding: 10px; border-bottom: 1px solid #334155; font-weight: bold; display: flex; align-items: center; gap: 10px;}
+        .team-list li::before { content: "🏏"; }
+        .team-list li:last-child { border-bottom: none; }
+
+        header { background-color: var(--card-bg); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--accent-gold); }
+        .room-info h1 { font-size: 1.2rem; color: var(--accent-gold); }
+        .room-code { background: #000; padding: 5px 10px; border-radius: 5px; font-family: monospace; letter-spacing: 2px; font-size: 1.2rem; color: var(--success);}
+        .container { display: flex; flex-direction: row; flex: 1; padding: 20px; gap: 20px; }
+        
+        .auction-stage { flex: 2; background-color: var(--card-bg); border-radius: 10px; padding: 20px; text-align: center; display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .player-category { background: var(--accent-gold); color: black; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; margin-bottom: 15px; letter-spacing: 1px; text-transform: uppercase; }
+        .player-photo { width: 200px; height: 200px; border-radius: 50%; object-fit: cover; border: 4px solid var(--accent-gold); margin-bottom: 10px; background: #fff; }
+        .player-name { font-size: 2rem; margin-bottom: 5px; }
+        .player-role { color: var(--text-muted); margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; width: 100%; margin-bottom: 25px; }
+        .stat-box { background-color: var(--primary-bg); padding: 15px; border-radius: 8px; border: 1px solid #334155; }
+        .stat-value { font-size: 1.5rem; font-weight: bold; color: var(--accent-gold); }
+        .stat-label { font-size: 0.8rem; color: var(--text-muted); }
+
+        .bidding-area { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        .timer-circle { width: 80px; height: 80px; border-radius: 50%; background-color: var(--primary-bg); border: 4px solid var(--danger); display: flex; justify-content: center; align-items: center; font-size: 2rem; font-weight: bold; color: var(--danger); }
+        .current-bid { font-size: 2.5rem; font-weight: bold; }
+        .highest-bidder { font-size: 1.2rem; margin-bottom: 15px; }
+
+        .btn-bid { background-color: var(--accent-gold); color: #000; border: none; padding: 15px 40px; font-size: 1.2rem; font-weight: bold; border-radius: 30px; cursor: pointer; transition: transform 0.1s, background-color 0.2s; width: 80%; max-width: 300px; }
+        .btn-bid:hover:not(:disabled) { background-color: #f59e0b; transform: scale(1.05); }
+        .btn-bid:active:not(:disabled) { transform: scale(0.95); }
+        .btn-bid:disabled { background-color: #555; cursor: not-allowed; color: #999; }
+
+        .side-panel { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+        .panel-box { background-color: var(--card-bg); border-radius: 10px; padding: 20px; flex: 1; display: flex; flex-direction: column; }
+        .panel-box h3 { color: var(--accent-gold); border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 15px; }
+        .log-item, .roster-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 0.9rem; }
+        .purse-remaining { font-size: 1.5rem; color: var(--success); font-weight: bold; text-align: center; margin-bottom: 10px; }
+        #bidding-log { max-height: 200px; overflow-y: auto; flex: 1; }
+
+        @media (max-width: 900px) { .container { flex-direction: column; } .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr; } .player-photo { width: 150px; height: 150px; } header { flex-direction: column; gap: 10px; text-align: center; } }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <div class="box">
+            <h1 style="color: var(--accent-gold); margin-bottom: 20px;">🏏 IPL Mega Auction</h1>
+            <p style="color: var(--text-muted); margin-bottom: 20px;">BGMI-Grade Dedicated Servers</p>
+            <input type="text" id="team-name" placeholder="e.g. CSK, MI, RCB">
+            <hr style="border: 1px solid #334155; margin: 20px 0;">
+            <button class="btn-host" onclick="createRoom()">👑 Create New Room (Host)</button>
+            <p style="color: var(--text-muted); margin: 10px 0;">- OR -</p>
+            <input type="text" id="join-code" placeholder="Enter 4-Letter Room Code" maxlength="4" style="text-transform: uppercase;">
+            <button onclick="joinRoom()">👤 Join Existing Room</button>
+        </div>
+    </div>
+
+    <div id="lobby-screen" style="display: none;">
+        <div class="box" style="max-width: 500px;">
+            <h1 style="color: var(--accent-gold); margin-bottom: 10px;">Waiting Lobby</h1>
+            <p style="font-size: 1.2rem;">Room Code: <span id="lobby-room-code" class="room-code">----</span></p>
+            <p id="network-status" style="font-size: 0.8rem; color: #fbbf24; margin-top: 5px;">Connecting to BLR2 Server...</p>
+            
+            <h3 style="margin-top: 25px; text-align: left; color: var(--text-muted);">Franchises Joined:</h3>
+            <ul id="connected-players-list" class="team-list"></ul>
+            
+            <div id="lobby-host-controls" style="display: none; margin-top: 20px;">
+                <button id="start-btn" onclick="startGame()" style="background: var(--accent-gold); color: black;">🚀 Start Mega Auction</button>
+            </div>
+            <div id="lobby-player-controls" style="display: none; margin-top: 20px;">
+                <p style="color: var(--success); font-weight: bold; padding: 10px;">Waiting for Host to start the match...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-wrapper">
+        <header>
+            <div class="room-info">
+                <h1>🏏 IPL 2026 Online Multiplayer</h1>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;" id="role-subtitle">Role: Loading...</p>
+            </div>
+            <div>
+                <span>Room Code: </span>
+                <span class="room-code" id="header-room-code">----</span>
+            </div>
+        </header>
+
+        <div class="container">
+            <main class="auction-stage">
+                <div class="player-category" id="ui-player-category">Auction Starting Soon</div>
+                <img src="https://ui-avatars.com/api/?name=Player&background=1e293b&color=fbbf24&size=200" alt="Player Photo" class="player-photo" id="ui-player-photo">
+                <a id="ui-google-search" href="#" target="_blank" style="color: var(--text-muted); font-size: 0.8rem; text-decoration: none; margin-bottom: 10px; border-bottom: 1px dashed;">🔍 Search Google Images</a>
+
+                <h2 class="player-name" id="ui-player-name">Waiting for Host...</h2>
+                <div class="player-role" id="ui-player-role"></div>
+                <div class="stats-grid" id="ui-stats-grid"></div>
+
+                <div class="bidding-area">
+                    <div class="timer-circle" id="timer-display">--</div>
+                    <div>
+                        <div class="current-bid" id="current-bid-display">₹ 0.00 Cr</div>
+                        <div class="highest-bidder" id="highest-bidder-display" style="color: var(--text-muted)">Base Price</div>
+                    </div>
+                    <button class="btn-bid" id="bid-btn" onclick="placeBid()" disabled>Waiting...</button>
+                </div>
+            </main>
+
+            <aside class="side-panel">
+                <div class="panel-box">
+                    <h3 id="my-team-title">Your Franchise Status</h3>
+                    <div class="purse-remaining" id="purse-display">₹ 120.00 Cr</div>
+                    <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">Remaining Purse</p>
+                    <h4 style="margin-bottom: 10px; color: var(--text-light);" id="squad-points-display">Current Squad Points: 0</h4>
+                    <div id="roster-list"></div>
+                </div>
+
+                <div class="panel-box">
+                    <h3>Live Bidding Log</h3>
+                    <div id="bidding-log"></div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        // --- 350 PLAYER DATABASE ---
+        const rawData = [[901,"Rishabh Pant",4,"India",2.0,"Marquee Players",[115,3284,148.9,128,95]],[902,"Shreyas Iyer",1,"India",2.0,"Marquee Players",[115,3127,125.3,96,88]],[903,"Arshdeep Singh",2,"India",2.0,"Marquee Players",[65,76,8.4,"4/9",90]],[904,"Jos Buttler",4,"England",2.0,"Marquee Players",[107,3582,147.5,124,96]],[905,"Kagiso Rabada",2,"South Africa",2.0,"Marquee Players",[82,117,8.4,"4/21",92]],[906,"Mohammed Siraj",2,"India",2.0,"Marquee Players",[93,93,8.6,"4/21",87]],[907,"KL Rahul",4,"India",2.0,"Marquee Players",[132,4683,134.4,132,91]],[908,"Mitchell Starc",2,"Australia",2.0,"Marquee Players",[42,51,8.2,"4/15",89]],[909,"R Ashwin",2,"India",2.0,"Marquee Players",[212,180,7.1,"4/34",85]],[910,"David Warner",1,"Australia",2.0,"Marquee Players",[184,6565,139.7,126,94]],[911,"Mohammed Shami",2,"India",2.0,"Marquee Players",[110,127,8.4,"4/11",90]],[912,"Trent Boult",2,"New Zealand",2.0,"Marquee Players",[104,121,8.2,"4/18",88]],[1,"Devon Conway",1,"New Zealand",2.0,"Capped Batters",[110,216,159.82,88,73]],[2,"Jake Fraser-McGurk",1,"Australia",2.0,"Capped Batters",[109,463,126.03,18,86]],[3,"Cameron Green",1,"Australia",2.0,"Capped Batters",[105,2070,143.8,22,94]],[4,"Sarfaraz Khan",1,"India",0.75,[105,1750,158.46,110,75]],[5,"David Miller",1,"South Africa",2.0,[63,334,136.81,96,73]],[6,"Prithvi Shaw",1,"India",0.75,[42,1651,141.52,58,91]],[7,"Gus Atkinson",3,"England",2.0,"Capped All-Rounders",[96,56,8.69,"5/22",79]],[8,"Wanindu Hasaranga",3,"Sri Lanka",2.0,"Capped All-Rounders",[41,1227,152.06,108,79]],[9,"Deepak Hooda",3,"India",0.75,"Capped All-Rounders",[62,1225,120.91,84,91]],[10,"Venkatesh Iyer",3,"India",2.0,"Capped All-Rounders",[38,1585,125.42,81,84]],[11,"Liam Livingstone",3,"England",2.0,"Capped All-Rounders",[140,1913,159.16,80,76]],[12,"Wiaan Mulder",3,"South Africa",1.0,"Capped All-Rounders",[27,3338,158.17,76,75]],[13,"Rachin Ravindra",3,"New Zealand",2.0,"Capped All-Rounders",[86,419,147.28,67,95]],[14,"Finn Allen",4,"New Zealand",2.0,"Capped Wicketkeepers",[137,2943,158.07,117,80]],[15,"Jonny Bairstow",4,"England",1.0,"Capped Wicketkeepers",[60,1118,127.13,35,93]],[16,"K.S. Bharat",4,"India",0.75,"Capped Wicketkeepers",[13,3489,139.94,76,85]],[17,"Quinton De Kock",4,"South Africa",1.0,"Capped Wicketkeepers",[128,2913,120.22,53,76]],[18,"Ben Duckett",4,"England",2.0,"Capped Wicketkeepers",[81,2763,155.76,112,72]],[19,"Rahmanullah Gurbaz",4,"Afghanistan",1.5,"Capped Wicketkeepers",[84,3329,146.42,50,93]],[20,"Jamie Smith",4,"England",2.0,"Capped Wicketkeepers",[62,94,8.06,"3/18",74]],[21,"Gerald Coetzee",2,"South Africa",2.0,"Capped Bowlers",[104,1865,123.77,50,91]],[22,"Akash Deep",2,"India",1.0,"Capped Bowlers",[31,1413,121.23,28,93]],[23,"Jacob Duffy",2,"New Zealand",2.0,"Capped Bowlers",[37,2882,130.6,98,90]],[24,"Fazalhaq Farooqi",2,"Afghanistan",1.0,"Capped Bowlers",[52,654,151.79,93,92]],[25,"Matt Henry",2,"New Zealand",2.0,"Capped Bowlers",[26,116,9.25,"3/38",87]],[26,"Spencer Johnson",2,"Australia",1.5,"Capped Bowlers",[16,2841,132.09,94,87]],[27,"Shivam Mavi",2,"India",0.75,"Capped Bowlers",[136,2651,153.8,66,75]],[28,"Anrich Nortje",2,"South Africa",2.0,"Capped Bowlers",[82,107,6.95,"5/18",71]],[29,"Matheesha Pathirana",2,"Sri Lanka",2.0,"Capped Bowlers",[51,1925,122.95,47,94]],[30,"Ravi Bishnoi",2,"India",2.0,"Capped Bowlers",[38,1316,134.13,76,73]],[31,"Rahul Chahar",2,"India",1.0,"Capped Bowlers",[116,923,123.01,84,81]],[32,"Akeal Hosein",2,"West Indies",2.0,"Capped Bowlers",[41,1570,126.35,40,91]],[33,"Mujeeb Rahman",2,"Afghanistan",2.0,"Capped Bowlers",[110,600,123.37,30,97]],[34,"Maheesh Theekshana",2,"Sri Lanka",2.0,"Capped Bowlers",[86,101,9.22,"5/21",80]],[35,"Aarya Desai",1,"India",0.3,"Uncapped Batters",[98,2890,125.75,101,78]],[36,"Yash Dhull",1,"India",0.3,"Uncapped Batters",[41,617,133.15,107,93]],[37,"Abhinav Manohar",1,"India",0.3,"Uncapped Batters",[53,2875,128.14,87,83]],[38,"Anmolpreet Singh",1,"India",0.3,"Uncapped Batters",[110,2401,139.3,55,93]],[39,"Atharva Taide",1,"India",0.3,"Uncapped Batters",[89,14,6.72,"3/18",82]],[40,"Abhinav Tejrana",1,"India",0.3,"Uncapped Batters",[89,28,9.08,"3/31",79]],[41,"Auqib Dar",3,"India",0.3,"Uncapped All-Rounders",[91,24,8.51,"5/39",78]],[42,"Rajvardhan Hangargekar",3,"India",0.4,"Uncapped All-Rounders",[14,64,9.23,"3/28",71]],[43,"Tanush Kotian",3,"India",0.3,"Uncapped All-Rounders",[53,1035,134.19,65,71]],[44,"Shivang Kumar",3,"India",0.3,"Uncapped All-Rounders",[129,541,134.73,81,87]],[45,"Mahipal Lomror",3,"India",0.5,"Uncapped All-Rounders",[115,101,7.31,"3/16",91]],[46,"Kamlesh Nagarkoti",3,"India",0.3,"Uncapped All-Rounders",[85,556,157.06,108,79]],[47,"Vijay Shankar",3,"India",0.3,"Uncapped All-Rounders",[110,3742,133.42,84,91]],[48,"Sanvir Singh",3,"India",0.3,"Uncapped All-Rounders",[54,3427,159.29,66,74]],[49,"Edhen Tom",3,"India",0.3,"Uncapped All-Rounders",[68,2960,122.91,97,89]],[50,"Prashant Veer",3,"India",0.3,"Uncapped All-Rounders",[97,3646,140.23,59,79]],[51,"Ruchit Ahir",4,"India",0.3,"Uncapped Wicketkeepers",[108,2473,118.06,53,92]],[52,"Vansh Bedi",4,"India",0.3,"Uncapped Wicketkeepers",[94,92,7.26,"5/38",88]],[53,"Mukul Choudhary",4,"India",0.3,"Uncapped Wicketkeepers",[10,2431,144.06,80,95]],[54,"Tushar Raheja",4,"India",0.3,"Uncapped Wicketkeepers",[64,1714,139.5,88,89]],[55,"Kartik Sharma",4,"India",0.3,"Uncapped Wicketkeepers",[65,2299,120.02,81,78]],[56,"Tejasvi Singh",4,"India",0.3,"Uncapped Wicketkeepers",[64,3004,136.21,68,91]],[57,"Raj Limbani",2,"India",0.3,"Uncapped Bowlers",[33,78,6.86,"5/19",74]],[58,"Akash Madhwal",2,"India",0.3,"Uncapped Bowlers",[27,28,8.27,"4/25",70]],[59,"Sushant Mishra",2,"India",0.3,"Uncapped Bowlers",[49,1144,129.47,38,78]],[60,"Ashok Sharma",2,"India",0.3,"Uncapped Bowlers",[80,1842,137.85,91,92]],[61,"Simarjeet Singh",2,"India",0.3,"Uncapped Bowlers",[113,80,6.6,"5/15",74]],[62,"Naman Tiwari",2,"India",0.3,"Uncapped Bowlers",[135,3346,126.25,111,83]],[63,"Kartik Tyagi",2,"India",0.3,"Uncapped Bowlers",[88,43,6.79,"4/34",92]],[64,"Yash Raj Punja",2,"India",0.3,"Uncapped Bowlers",[132,3284,151.72,50,95]],[65,"Vignesh Puthur",2,"India",0.3,"Uncapped Bowlers",[26,475,143.37,69,91]],[66,"Karn Sharma",2,"India",0.5,"Uncapped Bowlers",[104,2719,134.82,75,70]],[67,"Shivam Shukla",2,"India",0.3,"Uncapped Bowlers",[52,659,136.21,114,79]],[68,"Kumar Kartikeya Singh",2,"India",0.3,"Uncapped Bowlers",[75,1248,120.08,98,90]],[69,"Prashant Solanki",2,"India",0.3,"Uncapped Bowlers",[35,93,9.45,"3/28",70]],[70,"Wahidullah Zadran",2,"Afghanistan",0.3,"Uncapped Bowlers",[109,1957,158.04,93,77]],[71,"Mayank Agarawal",1,"India",0.75,"Capped Batters",[137,1622,122.3,115,86]],[72,"Sediqullah Atal",1,"Afghanistan",0.75,"Capped Batters",[53,118,6.59,"4/27",75]],[73,"Ackeem Auguste",1,"West Indies",0.75,"Capped Batters",[126,1021,138.75,58,87]],[74,"Reeza Hendricks",1,"South Africa",1.0,"Capped Batters",[69,1217,143.59,48,82]],[75,"Pathum Nissanka",1,"Sri Lanka",0.75,"Capped Batters",[61,146,8.23,"4/19",93]],[76,"Tim Robinson",1,"New Zealand",0.75,"Capped Batters",[12,1765,149.27,109,79]],[77,"Steve Smith",1,"Australia",2.0,"Capped Batters",[42,2451,140.28,76,93]],[78,"Rahul Tripathi",1,"India",0.75,"Capped Batters",[140,1763,115.08,53,80]],[79,"Sean Abbott",3,"Australia",2.0,"Capped All-Rounders",[105,3711,114.64,108,73]],[80,"Michael Bracewell",3,"New Zealand",2.0,"Capped All-Rounders",[68,1395,148.97,66,80]],[81,"Ben Dwarshuis",3,"Australia",1.0,"Capped All-Rounders",[18,1244,116.64,119,77]],[82,"Zak Foulkes",3,"New Zealand",0.75,"Capped All-Rounders",[87,817,129.07,78,78]],[83,"Jason Holder",3,"West Indies",2.0,"Capped All-Rounders",[131,326,146.54,79,93]],[84,"Daryl Mitchell",3,"New Zealand",2.0,"Capped All-Rounders",[32,464,143.67,25,91]],[85,"Daniel Sams",3,"Australia",1.0,"Capped All-Rounders",[130,511,154.81,99,75]],[86,"Dasun Shanaka",3,"Sri Lanka",0.75,"Capped All-Rounders",[51,1833,122.41,98,94]],[87,"Matthew Short",3,"Australia",1.5,"Capped All-Rounders",[103,3597,154.54,100,81]],[88,"Tom Banton",4,"England",2.0,"Capped Wicketkeepers",[115,32,7.88,"4/28",94]],[89,"Jordan Cox",4,"England",0.75,"Capped Wicketkeepers",[10,84,7.33,"3/23",83]],[90,"Shai Hope",4,"West Indies",2.0,"Capped Wicketkeepers",[74,95,8.41,"3/35",92]],[91,"Josh Inglis",4,"Australia",2.0,"Capped Wicketkeepers",[56,1011,146.84,65,92]],[92,"Benjamin McDermott",4,"Australia",0.75,"Capped Wicketkeepers",[90,2067,115.59,66,70]],[93,"Kusal Mendis",4,"Sri Lanka",0.75,"Capped Wicketkeepers",[65,1463,156.22,16,87]],[94,"Kusal Perera",4,"Sri Lanka",1.0,"Capped Wicketkeepers",[105,71,8.46,"4/34",72]],[95,"Tim Seifert",4,"New Zealand",1.5,"Capped Wicketkeepers",[122,2348,155.8,59,85]],[96,"Kyle Jamieson",2,"New Zealand",2.0,"Capped Bowlers",[54,2281,141.44,14,87]],[97,"Saqib Mahmood",2,"England",1.5,"Capped Bowlers",[112,89,7.67,"5/19",74]],[98,"Jason Behrendorff",2,"Australia",1.5,"Capped Bowlers",[101,506,143.58,63,77]],[99,"Richard Gleeson",2,"England",1.0,"Capped Bowlers",[20,1573,122.36,80,87]],[100,"Lungi Ngidi",2,"South Africa",2.0,"Capped Bowlers",[102,126,8.96,"4/29",76]],[101,"Josh Hazlewood",2,"Australia",2.0,"Capped Bowlers",[45,45,7.91,"4/31",79]],[102,"Ajaz Patel",2,"New Zealand",1.5,"Capped Bowlers",[58,3864,134.1,59,71]],[103,"Tabraiz Shamsi",2,"South Africa",1.5,"Capped Bowlers",[22,3450,111.45,54,82]],[104,"Mayank Markande",2,"India",1.0,"Capped Bowlers",[61,124,8.88,"3/34",94]],[105,"R Sai Kishore",2,"India",1.0,"Capped Bowlers",[93,2424,156.51,118,85]],[106,"Yuzvendra Chahal",2,"India",2.0,"Capped Bowlers",[146,1800,148.8,108,94]],[107,"Washington Sundar",3,"India",2.0,"Capped All-Rounders",[78,3840,146.16,90,71]],[108,"Prashant Chopra",1,"India",0.3,"Uncapped Batters",[129,3077,158.14,118,75]],[109,"Ankit Kumar",1,"India",0.3,"Uncapped Batters",[32,1668,121.64,112,88]],[110,"Rohan Kunnummal",1,"India",0.3,"Uncapped Batters",[64,692,143.02,85,76]],[111,"Danish Malewar",1,"India",0.3,"Uncapped Batters",[32,1840,122.81,74,90]],[112,"Pukhraj Mann",1,"India",0.3,"Uncapped Batters",[120,1473,146.69,88,82]],[113,"Salman Nizar",1,"India",0.3,"Uncapped Batters",[97,332,140.52,32,93]],[114,"Aman Rao Perala",1,"India",0.3,"Uncapped Batters",[97,692,149.92,76,79]],[115,"Akshat Raghuwanshi",1,"India",0.3,"Uncapped Batters",[69,313,147.63,94,97]],[116,"Manan Vohra",1,"India",0.3,"Uncapped Batters",[32,2587,123.12,98,92]],[117,"Yuvraj Chaudhary",3,"India",0.3,"Uncapped All-Rounders",[21,1642,139.11,104,71]],[118,"Satvik Deswal",3,"India",0.3,"Uncapped All-Rounders",[77,654,149.21,81,71]],[119,"Aman Khan",3,"India",0.3,"Uncapped All-Rounders",[23,1543,115.96,61,86]],[120,"Darshan Nalkande",3,"India",0.3,"Uncapped All-Rounders",[53,80,8.05,"4/36",80]],[121,"Hrithik Shokeen",3,"India",0.3,"Uncapped All-Rounders",[49,93,7.58,"3/37",91]],[122,"Utkarsh Singh",3,"India",0.3,"Uncapped All-Rounders",[23,122,9.32,"3/16",80]],[123,"Anunay Singh",3,"India",0.3,"Uncapped All-Rounders",[90,141,7.79,"3/24",88]],[124,"Vivek Singh",3,"India",0.3,"Uncapped All-Rounders",[70,23,7.85,"3/26",94]],[125,"Harsh Tyagi",3,"India",0.3,"Uncapped All-Rounders",[109,127,9.4,"4/18",77]],[126,"Sanjeev V",3,"India",0.3,"Uncapped All-Rounders",[106,12,7.33,"3/34",79]],[127,"Salil Arora",4,"India",0.3,"Uncapped Wicketkeepers",[38,38,7.17,"5/21",84]],[128,"Ricky Bhui",4,"India",0.3,"Uncapped Wicketkeepers",[82,48,8.41,"4/25",90]],[129,"Rahul Buddhi",4,"India",0.3,"Uncapped Wicketkeepers",[52,35,7.06,"5/33",78]],[130,"Saurav Chuahan",4,"India",0.3,"Uncapped Wicketkeepers",[105,87,6.82,"4/28",86]],[131,"Yashvardhan Dalal",4,"India",0.3,"Uncapped Wicketkeepers",[141,2950,149.77,111,71]],[132,"Abhishek Pathak",4,"India",0.3,"Uncapped Wicketkeepers",[133,3343,135.3,76,83]],[133,"Kunal Rathore",4,"India",0.3,"Uncapped Wicketkeepers",[59,951,110.12,93,86]],[134,"Ravi Singh",4,"India",0.3,"Uncapped Wicketkeepers",[89,714,136.86,91,77]],[135,"Urvil Patel",4,"India",0.3,"Uncapped Wicketkeepers",[109,463,126.03,18,86]],[136,"Fazil Makaya",2,"India",0.3,"Uncapped Bowlers",[105,2001,125.09,18,83]],[137,"Mukesh Kumar",2,"India",0.3,"Uncapped Bowlers",[38,1585,125.42,81,84]],[138,"Aditya Thakare",2,"India",0.3,"Uncapped Bowlers",[87,622,151.27,80,89]],[139,"Mohit Avasthi",2,"India",0.3,"Uncapped Bowlers",[123,2070,143.8,22,94]],[140,"Baltej Singh Dhanda",2,"India",0.3,"Uncapped Bowlers",[41,1570,126.35,40,91]],[141,"Rajat Goel",2,"India",0.3,"Uncapped Bowlers",[119,438,144.16,54,96]],[142,"Chetan Sakariya",2,"India",0.3,"Uncapped Bowlers",[83,2134,147.41,11,86]],[143,"Ishan Porel",2,"India",0.3,"Uncapped Bowlers",[52,1173,125.99,67,78]],[144,"Sandeep Sharma",2,"India",0.3,"Uncapped Bowlers",[16,2841,132.09,94,87]],[145,"Prakhar Chaturvedi",1,"India",0.3,"Uncapped Batters",[128,2913,120.22,53,76]],[146,"Manish Pandey",1,"India",0.75,"Capped Batters",[135,3346,126.25,111,83]],[147,"C. Hari Nishaanth",1,"India",0.3,"Uncapped Batters",[74,1176,122.95,71,79]],[148,"Sameer Rizvi",1,"India",0.3,"Uncapped Batters",[81,2763,155.76,112,72]],[149,"Subhranshu Senapati",1,"India",0.3,"Uncapped Batters",[89,133,9.5,"4/22",74]],[150,"Amandeep Khare",1,"India",0.3,"Uncapped Batters",[120,44,9.2,"3/22",90]],[151,"Nishant Sindhu",3,"India",0.3,"Uncapped All-Rounders",[68,89,7.09,"3/15",87]],[152,"Prerak Mankad",3,"India",0.3,"Uncapped All-Rounders",[56,140,6.72,"4/29",95]],[153,"Atit Sheth",3,"India",0.3,"Uncapped All-Rounders",[91,85,8.15,"4/20",91]],[154,"Sumeet Verma",3,"India",0.3,"Uncapped All-Rounders",[13,87,7.77,"3/23",79]],[155,"Akash Vasisht",3,"India",0.3,"Uncapped All-Rounders",[94,92,7.26,"5/38",88]],[156,"Deepak Kumar",3,"India",0.3,"Uncapped All-Rounders",[64,38,8.15,"3/18",83]],[157,"Abid Mushtaq",3,"India",0.3,"Uncapped All-Rounders",[86,101,9.22,"5/21",80]],[158,"Manoj Bhandage",3,"India",0.3,"Uncapped All-Rounders",[115,101,7.31,"3/16",91]],[159,"Ninad Rathva",3,"India",0.3,"Uncapped All-Rounders",[62,94,8.06,"3/18",74]],[160,"Bipin Saurabh",4,"India",0.3,"Uncapped Wicketkeepers",[82,107,6.95,"5/18",71]],[161,"Luvnith Sisodia",4,"India",0.3,"Uncapped Wicketkeepers",[36,60,9.01,"4/30",78]],[162,"Anuj Rawat",4,"India",0.3,"Uncapped Wicketkeepers",[49,138,7.73,"3/20",82]],[163,"Eknath Kerkar",4,"India",0.3,"Uncapped Wicketkeepers",[136,3070,142.32,58,80]],[164,"N Jagadeesan",4,"India",0.3,"Uncapped Wicketkeepers",[110,3742,133.42,84,91]],[165,"Sreevats Goswami",4,"India",0.3,"Uncapped Wicketkeepers",[126,3399,129.65,51,85]],[166,"Upendra Yadav",4,"India",0.3,"Uncapped Wicketkeepers",[59,3877,128.02,74,72]],[167,"Basir Ahamad",2,"India",0.3,"Uncapped Bowlers",[10,2431,144.06,80,95]],[168,"Manikandan S",2,"India",0.3,"Uncapped Bowlers",[65,2299,120.02,81,78]],[169,"Yudhvir Singh",2,"India",0.3,"Uncapped Bowlers",[13,3489,139.94,76,85]],[170,"Chintal Gandhi",2,"India",0.3,"Uncapped Bowlers",[25,3150,128.75,69,71]],[171,"Kunal Chandela",1,"India",0.3,"Uncapped Batters",[71,1388,158.77,22,97]],[172,"Ayush Doseja",1,"India",0.3,"Uncapped Batters",[32,464,143.67,25,91]],[173,"Shubham Khajuria",1,"India",0.3,"Uncapped Batters",[16,1480,140.86,92,93]],[174,"Kshitiz Sharma",1,"India",0.3,"Uncapped Batters",[51,511,130.57,17,80]],[175,"Priyank Panchal",1,"India",0.3,"Uncapped Batters",[65,1463,156.22,16,87]],[176,"Mandeep Singh",1,"India",0.5,"Uncapped Batters",[109,1957,158.04,93,77]],[177,"Samarth Vyas",1,"India",0.3,"Uncapped Batters",[18,906,160.52,37,93]],[178,"Agniv Pan",1,"India",0.3,"Uncapped Batters",[41,219,124.1,77,77]],[179,"Himanshu Rana",1,"India",0.3,"Uncapped Batters",[136,2651,153.8,66,75]],[180,"Karun Nair",1,"India",0.5,"Capped Batters",[81,3355,123.53,54,94]],[181,"Shubham Rohilla",1,"India",0.3,"Uncapped Batters",[137,1903,157.42,115,92]],[182,"Anmol Jain",1,"India",0.3,"Uncapped Batters",[22,1627,122.48,83,90]],[183,"Shaik Rasheed",1,"India",0.3,"Uncapped Batters",[103,3597,154.54,100,81]],[184,"Sudip Gharami",1,"India",0.3,"Uncapped Batters",[26,475,143.37,69,91]],[185,"Aryan Juyal",4,"India",0.3,"Uncapped Wicketkeepers",[73,1650,153.24,63,94]],[186,"Alex Carey",4,"Australia",1.5,"Capped Wicketkeepers",[114,2481,114.76,56,85]],[187,"Ollie Robinson",4,"England",1.0,"Capped Wicketkeepers",[61,124,8.88,"3/34",94]],[188,"Lorcan Tucker",4,"New Zealand",1.0,"Capped Wicketkeepers",[105,71,8.46,"4/34",72]],[189,"Joe Clarke",4,"England",0.5,"Capped Wicketkeepers",[26,116,9.25,"3/38",87]],[190,"Sadeera Samarawickrama",4,"Sri Lanka",0.75,"Capped Wicketkeepers",[113,80,6.6,"5/15",74]],[191,"Ryan Rickelton",4,"South Africa",1.0,"Capped Wicketkeepers",[61,146,8.23,"4/19",93]],[192,"Josh Philippe",4,"Australia",1.0,"Capped Wicketkeepers",[45,45,7.91,"4/31",79]],[193,"Heinrich Klaasen",4,"South Africa",1.5,"Capped Wicketkeepers",[110,64,8.08,"3/25",89]],[194,"Michael Pepper",4,"England",0.75,"Capped Wicketkeepers",[77,53,6.56,"5/22",72]],[195,"Luke Ronchi",4,"New Zealand",1.0,"Capped Wicketkeepers",[59,100,8.71,"4/15",79]],[196,"Johnson Charles",4,"West Indies",0.75,"Capped Wicketkeepers",[54,148,8.25,"5/21",87]],[197,"Matthew Wade",4,"New Zealand",1.5,"Capped Wicketkeepers",[25,97,8.27,"3/18",82]],[198,"Andre Fletcher",4,"West Indies",1.0,"Capped Wicketkeepers",[52,654,151.79,93,92]],[199,"Navdeep Saini",2,"India",0.75,"Capped Bowlers",[54,3427,159.29,66,74]],[200,"Kamal Singh",2,"India",0.3,"Uncapped Bowlers",[49,1520,153.64,119,85]],[201,"Avesh Khan",2,"India",1.0,"Capped Bowlers",[142,1791,131.02,58,73]],[202,"Kuldeep Sen",2,"India",0.3,"Uncapped Bowlers",[140,1913,159.16,80,76]],[203,"Arzan Nagwaswalla",2,"India",0.3,"Uncapped Bowlers",[58,2995,148.51,51,72]],[204,"Ishan Malinga",2,"Sri Lanka",1.0,"Capped Bowlers",[27,774,154.14,78,76]],[205,"Gowtham K",3,"India",0.5,"Uncapped All-Rounders",[53,2875,128.14,87,83]],[206,"Shahbaz Ahmed",3,"India",1.0,"Capped All-Rounders",[68,1395,148.97,66,80]],[207,"Deepak Chahar",2,"India",1.5,"Capped Bowlers",[105,3209,147.26,78,74]],[208,"Krunal Pandya",3,"India",2.0,"Capped All-Rounders",[80,1842,137.85,91,92]],[209,"Sandeep Warrier",2,"India",0.5,"Capped Bowlers",[126,1021,138.75,58,87]],[210,"Shreyas Gopal",3,"India",0.5,"Uncapped All-Rounders",[25,395,159.76,70,95]],[211,"Jalaj Saxena",3,"India",0.3,"Uncapped All-Rounders",[20,1573,122.36,80,87]],[212,"Harpreet Brar",2,"India",0.5,"Capped Bowlers",[49,1144,129.47,38,78]],[213,"Mohsin Khan",2,"India",1.0,"Capped Bowlers",[122,2348,155.8,59,85]],[214,"Yash Thakur",2,"India",0.3,"Uncapped Bowlers",[69,1217,143.59,48,82]],[215,"Vidhwath Kaverappa",2,"India",0.3,"Uncapped Bowlers",[54,2281,141.44,14,87]],[216,"Mujtaba Yousuf",2,"India",0.3,"Uncapped Bowlers",[130,511,154.81,99,75]],[217,"Ravi Kiran",2,"India",0.3,"Uncapped Bowlers",[44,2424,157.94,84,87]],[218,"Sushant Bhardwaj",2,"India",0.3,"Uncapped Bowlers",[64,3325,126.79,82,74]],[219,"Lukman Meriwala",2,"India",0.3,"Uncapped Bowlers",[36,1984,148.54,89,92]],[220,"Amit Ali",2,"India",0.3,"Uncapped Bowlers",[103,1928,117.21,90,86]],[221,"Gurnoor Brar",2,"India",0.3,"Uncapped Bowlers",[68,2960,122.91,97,89]],[222,"Darshan Misal",2,"India",0.3,"Uncapped Bowlers",[17,1564,136.24,64,76]],[223,"Tejas Baroka",2,"India",0.3,"Uncapped Bowlers",[72,2567,130.55,119,75]],[224,"Smidh Kumar",2,"India",0.3,"Uncapped Bowlers",[97,3299,114.21,53,81]],[225,"Khizer Dafedar",3,"India",0.3,"Uncapped All-Rounders",[30,602,113.14,77,84]],[226,"Mayank Dagar",3,"India",0.3,"Uncapped All-Rounders",[86,3004,115.35,114,87]],[227,"Pritam Das",3,"India",0.3,"Uncapped All-Rounders",[120,40,7.96,"3/32",78]],[228,"Pawan Negi",3,"India",0.3,"Uncapped All-Rounders",[47,38,9.08,"3/31",79]],[229,"Bavanaka Sandeep",3,"India",0.3,"Uncapped All-Rounders",[96,56,8.69,"5/22",79]],[230,"Chirag Jani",3,"India",0.3,"Uncapped All-Rounders",[53,118,6.59,"4/27",75]],[231,"Shams Mulani",3,"India",0.3,"Uncapped All-Rounders",[27,28,8.27,"4/25",70]],[232,"Swapnil Singh",3,"India",0.3,"Uncapped All-Rounders",[35,93,9.45,"3/28",70]],[233,"Pratham Singh",3,"India",0.3,"Uncapped All-Rounders",[102,126,8.96,"4/29",76]],[234,"Rahul Tewatia",3,"India",1.0,"Capped All-Rounders",[88,43,6.79,"4/34",92]],[235,"Akash Singh",2,"India",0.3,"Uncapped Bowlers",[112,89,7.67,"5/19",74]],[236,"Ankit Rajpoot",2,"India",0.3,"Uncapped Bowlers",[53,495,152.92,109,78]],[237,"Kulwant Khejroliya",2,"India",0.3,"Uncapped Bowlers",[137,1750,158.46,110,75]],[238,"Basil Thampi",2,"India",0.5,"Uncapped Bowlers",[84,3329,146.42,50,93]],[239,"Siddharth Kaul",2,"India",0.5,"Capped Bowlers",[52,659,136.21,114,79]],[240,"Barinder Sran",2,"India",0.5,"Uncapped Bowlers",[104,2719,134.82,75,70]],[241,"Rishi Dhawan",2,"India",0.5,"Capped Bowlers",[41,1227,152.06,108,79]],[242,"Jaydev Unadkat",2,"India",1.0,"Capped Bowlers",[86,419,147.28,67,95]],[243,"Umran Malik",2,"India",1.0,"Capped Bowlers",[31,1413,121.23,28,93]],[244,"Varun Aaron",2,"India",0.5,"Capped Bowlers",[104,1865,123.77,50,91]],[245,"Prasidh Krishna",2,"India",1.0,"Capped Bowlers",[116,923,123.01,84,81]],[246,"Tushar Deshpande",2,"India",0.5,"Capped Bowlers",[51,1925,122.95,47,94]],[247,"Vaibhav Arora",2,"India",0.3,"Uncapped Bowlers",[63,334,136.81,96,73]],[248,"Kuldip Yadav",2,"India",0.3,"Uncapped Bowlers",[55,2002,159.2,27,78]],[249,"Abhishek Sharma",3,"India",1.5,"Capped All-Rounders",[60,1118,127.13,35,93]],[250,"Riyan Parag",3,"India",1.5,"Capped All-Rounders",[110,600,123.37,30,97]],[251,"Tilak Varma",3,"India",2.0,"Capped All-Rounders",[130,2070,126.79,93,92]],[252,"Nehal Wadhera",3,"India",0.5,"Uncapped All-Rounders",[51,1595,148.9,78,72]],[253,"Ayush Badoni",3,"India",0.5,"Uncapped All-Rounders",[118,3491,158.62,91,70]],[254,"Dhruv Jurel",4,"India",1.0,"Capped Wicketkeepers",[37,2882,130.6,98,90]],[255,"Jitesh Sharma",4,"India",1.0,"Capped Wicketkeepers",[64,1714,139.5,88,89]],[256,"Prabhsimran Singh",4,"India",0.5,"Uncapped Wicketkeepers",[108,2473,118.06,53,92]],[257,"Abhinav Mukund",1,"India",0.5,"Capped Batters",[38,1316,134.13,76,73]],[258,"Saurabh Tiwary",1,"India",0.5,"Capped Batters",[91,24,8.51,"5/39",78]],[259,"Murali Vijay",1,"India",0.5,"Capped Batters",[14,64,9.23,"3/28",71]],[260,"Ajinkya Rahane",1,"India",1.5,"Capped Batters",[89,14,6.72,"3/18",82]],[261,"Cheteshwar Pujara",1,"India",1.5,"Capped Batters",[33,78,6.86,"5/19",74]],[262,"Gurkeerat Singh Mann",1,"India",0.5,"Capped Batters",[39,2069,152.41,120,81]],[263,"Hanuma Vihari",1,"India",0.5,"Capped Batters",[87,817,129.07,78,78]],[264,"Kedar Jadhav",1,"India",1.0,"Capped Batters",[84,1001,156.4,85,93]],[265,"Manoj Tiwary",1,"India",0.5,"Capped Batters",[137,2943,158.07,117,80]],[266,"Naman Ojha",1,"India",0.5,"Capped Batters",[27,3338,158.17,76,75]],[267,"Parthiv Patel",4,"India",1.0,"Capped Wicketkeepers",[137,1622,122.3,115,86]],[268,"Robin Uthappa",1,"India",1.5,"Capped Batters",[22,3450,111.45,54,82]],[269,"Sheldon Jackson",1,"India",0.5,"Uncapped Batters",[18,1244,116.64,119,77]],[270,"Shreevats Goswami",4,"India",0.5,"Uncapped Wicketkeepers",[110,2401,139.3,55,93]],[271,"Wriddhiman Saha",4,"India",1.5,"Capped Wicketkeepers",[132,3284,151.72,50,95]],[272,"Ambati Rayudu",1,"India",1.5,"Capped Batters",[77,348,156.76,57,89]],[273,"Manish Pandey",1,"India",1.0,"Capped Batters",[15,3166,134.12,68,91]],[274,"Shikhar Dhawan",1,"India",2.0,"Capped Batters",[12,1765,149.27,109,79]],[275,"Suresh Raina",1,"India",2.0,"Capped Batters",[131,326,146.54,79,93]],[276,"Yuvraj Singh",3,"India",2.0,"Capped All-Rounders",[41,617,133.15,107,93]],[277,"Harbhajan Singh",3,"India",1.5,"Capped All-Rounders",[129,541,134.73,81,87]],[278,"Amit Mishra",2,"India",1.0,"Capped Bowlers",[138,2461,120.34,92,93]],[279,"Piyush Chawla",2,"India",1.0,"Capped Bowlers",[103,1165,116.61,70,89]],[280,"Rahul Sharma",2,"India",0.5,"Capped Bowlers",[98,2890,125.75,101,78]],[281,"Karn Sharma",2,"India",0.5,"Capped Bowlers",[42,1651,141.52,58,91]],[282,"Jayant Yadav",3,"India",0.5,"Capped All-Rounders",[75,1248,120.08,98,90]],[283,"Pawan Negi",3,"India",0.5,"Capped All-Rounders",[36,3752,143.08,61,90]],[284,"Shahbaz Nadeem",2,"India",0.5,"Capped Bowlers",[100,530,131.78,103,79]],[285,"Murugan Ashwin",2,"India",0.5,"Uncapped Bowlers",[64,3004,136.21,68,91]],[286,"Shreyas Gopal",3,"India",0.5,"Uncapped All-Rounders",[48,2281,136.66,96,73]],[287,"Washington Sundar",3,"India",1.5,"Capped All-Rounders",[97,3646,140.23,59,79]],[288,"Rahul Chahar",2,"India",1.0,"Capped Bowlers",[85,556,157.06,108,79]],[289,"Ravi Bishnoi",2,"India",1.5,"Capped Bowlers",[53,1035,134.19,65,71]],[290,"Prashant Solanki",2,"India",0.3,"Uncapped Bowlers",[58,35,9.45,"3/28",78]],[291,"Kumar Kartikeya",2,"India",0.3,"Uncapped Bowlers",[97,11,8.04,"3/21",87]],[292,"Sai Kishore",2,"India",0.5,"Uncapped Bowlers",[94,84,8.51,"4/23",92]],[293,"Manimaran Siddharth",2,"India",0.3,"Uncapped Bowlers",[41,64,8.19,"5/22",91]],[294,"Hrithik Shokeen",3,"India",0.3,"Uncapped All-Rounders",[89,28,9.08,"3/31",79]],[295,"Shiva Singh",2,"India",0.3,"Uncapped Bowlers",[102,126,8.96,"4/29",76]],[296,"Yuvraj Chudasama",2,"India",0.3,"Uncapped Bowlers",[86,419,147.28,67,95]],[297,"R Sanjay Yadav",3,"India",0.3,"Uncapped All-Rounders",[52,654,151.79,93,92]],[298,"Vidyadhar Patil",2,"India",0.3,"Uncapped Bowlers",[94,84,8.51,"4/23",92]],[299,"Mujtaba Yousuf",2,"India",0.3,"Uncapped Bowlers",[109,1957,158.04,93,77]],[300,"Ashok Sharma",2,"India",0.3,"Uncapped Bowlers",[112,89,7.67,"5/19",74]],[301,"Yash Thakur",2,"India",0.3,"Uncapped Bowlers",[60,1118,127.13,35,93]],[302,"Anunay Singh",2,"India",0.3,"Uncapped Bowlers",[110,600,123.37,30,97]],[303,"Prerak Mankad",3,"India",0.3,"Uncapped All-Rounders",[82,48,8.41,"4/25",90]],[304,"Vivrant Sharma",3,"India",0.3,"Uncapped All-Rounders",[49,93,7.58,"3/37",91]],[305,"Mayank Dagar",3,"India",0.5,"Uncapped All-Rounders",[120,44,9.2,"3/22",90]],[306,"Duan Jansen",2,"South Africa",0.5,"Uncapped Bowlers",[96,56,8.69,"5/22",79]],[307,"Donovan Ferreira",4,"South Africa",0.5,"Uncapped Wicketkeepers",[53,118,6.59,"4/27",75]],[308,"Corbin Bosch",4,"South Africa",0.5,"Uncapped Wicketkeepers",[27,28,8.27,"4/25",70]],[309,"Matthew Breetzke",4,"South Africa",0.5,"Uncapped Wicketkeepers",[35,93,9.45,"3/28",70]],[310,"Jordan Hermann",1,"South Africa",0.5,"Uncapped Batters",[102,126,8.96,"4/29",76]],[311,"Beyers Swanepoel",3,"South Africa",0.5,"Uncapped All-Rounders",[88,43,6.79,"4/34",92]],[312,"Nandre Burger",2,"South Africa",1.0,"Capped Bowlers",[112,89,7.67,"5/19",74]],[313,"Gus Atkinson",2,"England",1.0,"Capped Bowlers",[53,495,152.92,109,78]],[314,"Tom Hartley",2,"England",1.0,"Capped Bowlers",[137,1750,158.46,110,75]],[315,"Richard Gleeson",2,"England",1.0,"Capped Bowlers",[84,3329,146.42,50,93]],[316,"Brydon Carse",2,"England",1.0,"Capped Bowlers",[52,659,136.21,114,79]],[317,"Matthew Potts",2,"England",1.0,"Capped Bowlers",[104,2719,134.82,75,70]],[318,"Luke Wood",2,"England",1.0,"Capped Bowlers",[41,1227,152.06,108,79]],[319,"Tom Lawes",2,"England",0.5,"Uncapped Bowlers",[86,419,147.28,67,95]],[320,"John Turner",2,"England",0.5,"Uncapped Bowlers",[31,1413,121.23,28,93]],[321,"Shoaib Bashir",2,"England",0.5,"Uncapped Bowlers",[104,1865,123.77,50,91]],[322,"Rehan Ahmed",2,"England",0.5,"Capped Bowlers",[116,923,123.01,84,81]],[323,"Matt Parkinson",2,"England",0.5,"Capped Bowlers",[51,1925,122.95,47,94]],[324,"Callum Parkinson",2,"England",0.5,"Uncapped Bowlers",[63,334,136.81,96,73]],[325,"Dan Lawrence",1,"England",1.0,"Capped Batters",[55,2002,159.2,27,78]],[326,"Ollie Pope",1,"England",1.0,"Capped Batters",[60,1118,127.13,35,93]],[327,"Zak Crawley",1,"England",1.0,"Capped Batters",[110,600,123.37,30,97]],[328,"Ben Duckett",1,"England",1.5,"Capped Batters",[130,2070,126.79,93,92]],[329,"Harry Brook",1,"England",1.5,"Capped Batters",[51,1595,148.9,78,72]],[330,"Will Jacks",1,"England",1.5,"Capped Batters",[118,3491,158.62,91,70]],[331,"Philip Salt",3,"England",1.5,"Capped All-Rounders",[37,2882,130.6,98,90]],[332,"Sam Hain",1,"England",0.5,"Uncapped Batters",[64,1714,139.5,88,89]],[333,"Joe Clarke",4,"England",0.5,"Uncapped Wicketkeepers",[108,2473,118.06,53,92]],[334,"Tom Kohler-Cadmore",4,"England",0.5,"Uncapped Wicketkeepers",[38,1316,134.13,76,73]],[335,"Adam Rossington",4,"England",0.5,"Uncapped Wicketkeepers",[91,24,8.51,"5/39",78]],[336,"Michael Pepper",4,"England",0.5,"Uncapped Wicketkeepers",[14,64,9.23,"3/28",71]],[337,"Jamie Smith",4,"England",0.5,"Capped Wicketkeepers",[89,14,6.72,"3/18",82]],[338,"Jordan Cox",4,"England",0.5,"Uncapped Wicketkeepers",[33,78,6.86,"5/19",74]],[339,"Ollie Robinson",4,"England",0.5,"Uncapped Wicketkeepers",[39,2069,152.41,120,81]],[340,"Nishant Thakur",3,"India",0.3,"Uncapped All-Rounders",[87,817,129.07,78,78]],[341,"Vimal Vaghela",3,"India",0.3,"Uncapped All-Rounders",[84,1001,156.4,85,93]],[342,"Mohamed Ali",3,"India",0.3,"Uncapped All-Rounders",[137,2943,158.07,117,80]],[343,"Madhav Bajaj",3,"India",0.3,"Uncapped All-Rounders",[27,3338,158.17,76,75]],[344,"Akshu Bajwa",3,"India",0.3,"Uncapped All-Rounders",[137,1622,122.3,115,86]],[345,"Varun Raj Singh Bisht",3,"India",0.3,"Uncapped All-Rounders",[22,3450,111.45,54,82]],[346,"Rishabh Chauhan",3,"India",0.3,"Uncapped All-Rounders",[18,1244,116.64,119,77]],[347,"Jack Edwards",3,"Australia",0.3,"Uncapped All-Rounders",[110,2401,139.3,55,93]],[348,"Dian Forrester",3,"South Africa",0.3,"Uncapped All-Rounders",[132,3284,151.72,50,95]],[349,"Dhurmil Matkar",3,"India",0.3,"Uncapped All-Rounders",[77,348,156.76,57,89]],[350,"Shiva Singh",3,"India",0.3,"Uncapped All-Rounders",[15,3166,134.12,68,91]],[351,"Parikshit Valsangkar",3,"India",0.3,"Uncapped All-Rounders",[12,1765,149.27,109,79]]];
+
+        const ROLE_MAP = {1: "Batter", 2: "Bowler", 3: "All Rounder", 4: "Wicketkeeper"};
+        
+        let playersData = rawData.map(p => {
+            let roleStr = ROLE_MAP[p[2]];
+            let statsObj = { matches: p[6][0] };
+            if (roleStr === "Batter" || roleStr === "Wicketkeeper") {
+                statsObj.runs = p[6][1]; statsObj.strikeRate = p[6][2];
+                statsObj.highestScore = p[6][3]; statsObj.statPointsYield = p[6][4];
+            } else if (roleStr === "Bowler") {
+                statsObj.wickets = p[6][1]; statsObj.economy = p[6][2];
+                statsObj.bestBowling = p[6][3]; statsObj.statPointsYield = p[6][4];
+            } else {
+                statsObj.runs = p[6][1]; statsObj.strikeRate = p[6][2];
+                statsObj.wickets = p[6][3]; statsObj.statPointsYield = p[6][4];
+            }
+            return { id: p[0], name: p[1], role: roleStr, country: p[3], basePriceCr: p[4], category: p[5], stats: statsObj };
+        });
+
+        // SORT DATA BY IPL AUCTION SET LOGIC (Sequential Bidding)
+        const categoryOrder = [
+            "Marquee Players", "Capped Batters", "Capped All-Rounders", 
+            "Capped Wicketkeepers", "Capped Bowlers", "Uncapped Batters", 
+            "Uncapped All-Rounders", "Uncapped Wicketkeepers", "Uncapped Bowlers", "Other"
+        ];
+        playersData.sort((a, b) => {
+            let catA = categoryOrder.indexOf(a.category); let catB = categoryOrder.indexOf(b.category);
+            if(catA === -1) catA = 99; if(catB === -1) catB = 99;
+            if(catA !== catB) return catA - catB; return a.id - b.id; 
+        });
+
+        // --- HTTP NATIVE NETWORKING ---
+        let myRoomCode = "";
+        let isHost = false;
+        let myTeamName = "";
+        let myPurse = 120.00;
+        let myTotalPoints = 0;
+        let lastLoggedBid = 0;
+        let lastSoldPlayerId = null;
+        let currentPlayerIndex = -1;
+        let hostInterval = null;
+        let sseConnection = null;
+
+        let gameState = {
+            player: null, playerImageUrl: "", currentBid: 0,
+            highestBidder: 'Base Price', endTimestamp: 0, 
+            status: 'lobby', teamsJoined: []
+        };
+
+        const ui = {
+            setupScreen: document.getElementById('setup-screen'), lobbyScreen: document.getElementById('lobby-screen'),
+            gameWrapper: document.getElementById('game-wrapper'), timer: document.getElementById('timer-display'),
+            bid: document.getElementById('current-bid-display'), bidder: document.getElementById('highest-bidder-display'),
+            log: document.getElementById('bidding-log'), btn: document.getElementById('bid-btn'),
+            photo: document.getElementById('ui-player-photo'), googleLink: document.getElementById('ui-google-search'),
+            name: document.getElementById('ui-player-name'), role: document.getElementById('ui-player-role'),
+            category: document.getElementById('ui-player-category'), stats: document.getElementById('ui-stats-grid'),
+            purse: document.getElementById('purse-display'), points: document.getElementById('squad-points-display'),
+            roster: document.getElementById('roster-list'), lobbyList: document.getElementById('connected-players-list')
+        };
+
+        // --- GLOBAL TIMER TICKER ---
+        // Runs perfectly locally, calculated off the Host's target timestamp!
+        setInterval(() => {
+            if (gameState.status === 'active') {
+                let remaining = Math.max(0, Math.ceil((gameState.endTimestamp - Date.now()) / 1000));
+                ui.timer.innerText = remaining < 10 ? "0" + remaining : remaining;
+            } else if (gameState.status === 'sold') {
+                ui.timer.innerText = "00";
+            } else {
+                ui.timer.innerText = "--";
+            }
+        }, 200);
+
+        async function fetchPlayerImage(name) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 2000);
+                const res = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(name)}&prop=pageimages&format=json&pithumbsize=300&origin=*`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                const data = await res.json();
+                const pages = data.query.pages;
+                const page = Object.values(pages)[0];
+                if (page && page.thumbnail && page.thumbnail.source) return page.thumbnail.source; 
+            } catch (e) {}
+            return `https://ui-avatars.com/api/?name=${name.split(' ').join('+')}&background=1e293b&color=fbbf24&size=200`;
+        }
+
+        // --- HTTP PUB/SUB SYSTEM (NTFY) ---
+        // 100% Native. Uses standard HTTP fetch() and EventSource. Unblockable by standard firewalls.
+        function createRoom() {
+            myTeamName = document.getElementById('team-name').value || "Host Team";
+            isHost = true;
+            myRoomCode = Math.random().toString(36).substring(2, 6).toLowerCase();
+            
+            // LOCAL SYNC FALLBACK
+            localStorage.setItem('ipl_host_room', myRoomCode);
+            localStorage.setItem('ipl_game_state', JSON.stringify(gameState));
+            window.addEventListener('storage', (e) => {
+                if (e.key === 'ipl_player_action' && e.newValue) {
+                    const act = JSON.parse(e.newValue);
+                    if (act.type === 'join' && !gameState.teamsJoined.includes(act.team)) {
+                        gameState.teamsJoined.push(act.team);
+                        broadcastState();
+                    } else if (act.type === 'bid') {
+                        handleHostReceivesBid(act.team);
+                    }
+                }
+            });
+
+            // INSTANT UI LAUNCH
+            launchLobby();
+
+            // CONNECT NATIVE ONLINE LISTENER
+            const actionTopic = `ipl26_actions_${myRoomCode}`;
+            sseConnection = new EventSource(`https://ntfy.sh/${actionTopic}/sse`);
+            
+            sseConnection.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.event === "message") {
+                        const action = JSON.parse(data.message);
+                        if (action.type === 'join' && !gameState.teamsJoined.includes(action.team)) {
+                            gameState.teamsJoined.push(action.team);
+                            broadcastState();
+                        } else if (action.type === 'bid') {
+                            handleHostReceivesBid(action.team);
+                        }
+                    }
+                } catch(err) {}
+            };
+        }
+
+        function joinRoom() {
+            myTeamName = document.getElementById('team-name').value || "Player Team";
+            let code = document.getElementById('join-code').value.toLowerCase().trim();
+            if(!code || code.length !== 4) return alert("Please enter a valid 4-Letter Room Code!");
+            myRoomCode = code;
+
+            // INSTANT UI LAUNCH
+            launchPlayerLobby();
+
+            // CHECK LOCAL SYNC FALLBACK FIRST
+            if (localStorage.getItem('ipl_host_room') === myRoomCode) {
+                document.getElementById('network-status').innerText = "⚡ Local Sync Active (Same Device)";
+                localStorage.setItem('ipl_player_action', JSON.stringify({ type: 'join', team: myTeamName, rm: Math.random() }));
+                
+                window.addEventListener('storage', (e) => {
+                    if (e.key === 'ipl_game_state' && e.newValue) {
+                        gameState = JSON.parse(e.newValue);
+                        if (gameState.status === 'lobby') updateLobbyUI();
+                        else {
+                            ui.lobbyScreen.style.display = 'none';
+                            ui.gameWrapper.style.display = 'flex';
+                            updateUI(gameState);
+                            if (gameState.status === 'sold') processSold(gameState);
+                        }
+                    }
+                });
+                return;
+            }
+
+            // CONNECT NATIVE ONLINE LISTENER
+            const stateTopic = `ipl26_state_${myRoomCode}`;
+            sseConnection = new EventSource(`https://ntfy.sh/${stateTopic}/sse?since=now`);
+            
+            sseConnection.onopen = () => {
+                document.getElementById('network-status').innerText = "🟢 Online Connection Established";
+                fetch(`https://ntfy.sh/ipl26_actions_${myRoomCode}`, { method: 'POST', body: JSON.stringify({ type: 'join', team: myTeamName }) }).catch(e=>{});
+            };
+            
+            sseConnection.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.event === "message") {
+                        gameState = JSON.parse(data.message);
+                        if (gameState.status === 'lobby') {
+                            updateLobbyUI();
+                        } else {
+                            ui.lobbyScreen.style.display = 'none';
+                            ui.gameWrapper.style.display = 'flex';
+                            updateUI(gameState);
+                            if (gameState.status === 'sold') processSold(gameState);
+                        }
+                    }
+                } catch(err) {}
+            };
+        }
+
+        function launchLobby() {
+            document.getElementById('lobby-room-code').innerText = myRoomCode.toUpperCase();
+            document.getElementById('header-room-code').innerText = myRoomCode.toUpperCase();
+            document.getElementById('role-subtitle').innerText = "Role: 👑 ROOM HOST";
+            document.getElementById('my-team-title').innerText = `${myTeamName} Franchise`;
+            ui.setupScreen.style.display = 'none';
+            ui.lobbyScreen.style.display = 'flex';
+            document.getElementById('lobby-host-controls').style.display = "block";
+            
+            gameState.teamsJoined = [myTeamName];
+            updateLobbyUI();
+            broadcastState();
+        }
+
+        function launchPlayerLobby() {
+            document.getElementById('lobby-room-code').innerText = myRoomCode.toUpperCase();
+            document.getElementById('header-room-code').innerText = myRoomCode.toUpperCase();
+            document.getElementById('role-subtitle').innerText = "Role: 👤 PLAYER";
+            document.getElementById('my-team-title').innerText = `${myTeamName} Franchise`;
+            ui.setupScreen.style.display = 'none';
+            ui.lobbyScreen.style.display = 'flex';
+            document.getElementById('lobby-player-controls').style.display = "block";
+        }
+
+        function updateLobbyUI() {
+            ui.lobbyList.innerHTML = "";
+            gameState.teamsJoined.forEach(team => {
+                const li = document.createElement('li');
+                li.innerText = team;
+                ui.lobbyList.appendChild(li);
+            });
+        }
+
+        function startGame() {
+            if(!isHost) return;
+            document.getElementById('start-btn').disabled = true;
+
+            ui.lobbyScreen.style.display = 'none';
+            ui.gameWrapper.style.display = 'flex';
+            
+            gameState.status = 'loading';
+            broadcastState(); 
+            loadNextPlayer();
+            
+            if(hostInterval) clearInterval(hostInterval);
+            hostInterval = setInterval(() => {
+                if (gameState.status === 'active' && Date.now() >= gameState.endTimestamp) {
+                    gameState.status = 'sold';
+                    broadcastState();
+                    processSold(gameState);
+                    setTimeout(loadNextPlayer, 4000); 
+                }
+            }, 250); // Checking every 250ms for ultra precision
+        }
+
+        async function loadNextPlayer() {
+            if (!isHost) return;
+            
+            currentPlayerIndex++;
+            if(currentPlayerIndex >= playersData.length) {
+                alert("AUCTION COMPLETE! All players have been auctioned.");
+                return;
+            }
+
+            gameState.status = 'loading'; 
+            broadcastState();
+
+            gameState.player = playersData[currentPlayerIndex];
+            gameState.playerImageUrl = await fetchPlayerImage(gameState.player.name);
+            
+            gameState.currentBid = gameState.player.basePriceCr;
+            gameState.highestBidder = 'Base Price';
+            gameState.endTimestamp = Date.now() + 15500; // 15.5 seconds from right now
+            gameState.status = 'active';
+            
+            broadcastState();
+        }
+
+        function handleHostReceivesBid(team) {
+            if (gameState.status === 'active' && gameState.highestBidder !== team) {
+                if (gameState.highestBidder === 'Base Price') {
+                    gameState.currentBid = gameState.player.basePriceCr;
+                } else {
+                    gameState.currentBid = parseFloat((gameState.currentBid + 0.50).toFixed(2));
+                }
+                gameState.highestBidder = team;
+                gameState.endTimestamp = Date.now() + 15500; // Reset the master clock
+                broadcastState();
+            }
+        }
+
+        function placeBid() {
+            if (gameState.status !== 'active') return;
+            let requiredBid = (gameState.highestBidder === 'Base Price') ? gameState.player.basePriceCr : gameState.currentBid + 0.50;
+            if (requiredBid > myPurse) return alert("You don't have enough purse remaining!");
+            
+            if (isHost) {
+                handleHostReceivesBid(myTeamName);
+            } else {
+                localStorage.setItem('ipl_player_action', JSON.stringify({ type: 'bid', team: myTeamName, rm: Math.random() }));
+                fetch(`https://ntfy.sh/ipl26_actions_${myRoomCode}`, { method: 'POST', body: JSON.stringify({ type: 'bid', team: myTeamName }) }).catch(e => {});
+            }
+        }
+
+        function broadcastState() {
+            if (!isHost) return;
+            localStorage.setItem('ipl_game_state', JSON.stringify(gameState));
+            fetch(`https://ntfy.sh/ipl26_state_${myRoomCode}`, { method: 'POST', body: JSON.stringify(gameState) }).catch(e => {});
+            updateUI(gameState); 
+        }
+
+        function updateUI(state) {
+            if(state.status === 'loading') {
+                ui.category.innerText = "Loading...";
+                ui.name.innerText = "Next Player to the Block...";
+                ui.photo.src = "https://via.placeholder.com/200/1e293b/fbbf24?text=Loading...";
+                ui.btn.disabled = true;
+                return;
+            }
+
+            if(!state.player) return;
+            const p = state.player;
+            
+            ui.category.innerText = `🔥 Set: ${p.category} 🔥`;
+            ui.name.innerText = p.name;
+            ui.role.innerText = `${p.role} | ${p.country}`;
+            ui.photo.src = state.playerImageUrl;
+            ui.googleLink.href = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(p.name + " cricket")}`;
+            
+            let statsHTML = '';
+            if (p.stats.runs !== undefined) {
+                statsHTML += `<div class="stat-box"><div class="stat-value">${p.stats.runs}</div><div class="stat-label">Runs</div></div>`;
+                statsHTML += `<div class="stat-box"><div class="stat-value">${p.stats.strikeRate}</div><div class="stat-label">Strike Rate</div></div>`;
+            }
+            if (p.stats.wickets !== undefined) {
+                statsHTML += `<div class="stat-box"><div class="stat-value">${p.stats.wickets}</div><div class="stat-label">Wickets</div></div>`;
+            }
+            if (p.stats.economy !== undefined) {
+                statsHTML += `<div class="stat-box"><div class="stat-value">${p.stats.economy}</div><div class="stat-label">Economy</div></div>`;
+            }
+            if (p.stats.highestScore !== undefined) {
+                statsHTML += `<div class="stat-box"><div class="stat-value">${p.stats.highestScore}</div><div class="stat-label">High Score</div></div>`;
+            }
+            statsHTML += `<div class="stat-box"><div class="stat-value">${p.stats.statPointsYield}</div><div class="stat-label">Points</div></div>`;
+            ui.stats.innerHTML = statsHTML;
+
+            ui.bid.innerText = `₹ ${state.currentBid.toFixed(2)} Cr`;
+            
+            if (state.highestBidder === myTeamName) {
+                ui.bidder.innerText = "Highest Bidder: YOU";
+                ui.bidder.style.color = "var(--success)";
+            } else {
+                ui.bidder.innerText = `Highest Bidder: ${state.highestBidder}`;
+                ui.bidder.style.color = state.highestBidder === 'Base Price' ? "var(--text-muted)" : "var(--danger)";
+            }
+
+            if (state.status === 'active') {
+                ui.btn.disabled = false;
+                ui.btn.innerText = "Bid +₹ 50 Lakhs";
+            }
+
+            if (state.highestBidder !== 'Base Price' && state.currentBid !== lastLoggedBid) {
+                const newLog = document.createElement('div');
+                newLog.className = 'log-item';
+                newLog.innerHTML = `<span>${state.highestBidder} bid</span><span style="color: var(--accent-gold)">₹ ${state.currentBid.toFixed(2)} Cr</span>`;
+                ui.log.insertBefore(newLog, ui.log.firstChild);
+                lastLoggedBid = state.currentBid;
+            } else if (state.highestBidder === 'Base Price' && lastLoggedBid !== 0) {
+                ui.log.innerHTML = ''; 
+                lastLoggedBid = 0;
+            }
+        }
+
+        function processSold(state) {
+            if (lastSoldPlayerId === state.player.id) return; 
+            lastSoldPlayerId = state.player.id;
+
+            ui.btn.disabled = true;
+            
+            if (state.highestBidder === 'Base Price') {
+                ui.btn.innerText = "UNSOLD";
+                ui.bidder.innerText = "UNSOLD!";
+                ui.bidder.style.color = "var(--text-muted)";
+            } else {
+                ui.btn.innerText = "SOLD!";
+                ui.bidder.innerText = `SOLD to ${state.highestBidder} for ₹ ${state.currentBid.toFixed(2)} Cr!`;
+                ui.bidder.style.color = "var(--success)";
+                
+                if (state.highestBidder === myTeamName) {
+                    myPurse = parseFloat((myPurse - state.currentBid).toFixed(2));
+                    myTotalPoints += state.player.stats.statPointsYield;
+                    
+                    ui.purse.innerText = `₹ ${myPurse.toFixed(2)} Cr`;
+                    ui.points.innerText = `Current Squad Points: ${myTotalPoints}`;
+                    
+                    const rosterItem = document.createElement('div');
+                    rosterItem.className = 'roster-item';
+                    rosterItem.innerHTML = `<span>${state.player.name}</span><span style="color: var(--success)">+${state.player.stats.statPointsYield} pts</span>`;
+                    ui.roster.appendChild(rosterItem);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
